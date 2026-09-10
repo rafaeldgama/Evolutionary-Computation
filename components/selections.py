@@ -2,12 +2,17 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 class SelectionOperator(ABC):
+    def __init__(self, seed: int | None = None):
+        super().__init__()
+        self.rng = np.random.default_rng(seed)
 
     @abstractmethod
     def select(self, *, direction, X, fitness_X, Y, fitness_Y):
         pass
 
 class GreedySelection(SelectionOperator):
+    def __init__(self, seed: int | None = None):
+        super().__init__(seed=seed)
     
     def select(self, *, direction, X, fitness_X, Y, fitness_Y):
         if direction == 'min':
@@ -17,8 +22,8 @@ class GreedySelection(SelectionOperator):
         return np.where(mask[:,np.newaxis], Y, X), np.where(mask, fitness_Y, fitness_X)
 
 class TournamentSelection(SelectionOperator):
-    def __init__(self, k=2):
-        super().__init__()
+    def __init__(self, k=2, seed: int | None = None):
+        super().__init__(seed=seed)
         self.k = k
 
     def select(self, population, fitness):
@@ -46,6 +51,8 @@ class TournamentSelection(SelectionOperator):
         selected_mating_pool = np.array(selected_mating_pool)
                 
 class CrowdedTournamentSelection(SelectionOperator):
+    def __init__(self, seed: int | None = None):
+        super().__init__(seed=seed)
     
     def select(self, X, ranks, distances):
         """
@@ -58,8 +65,8 @@ class CrowdedTournamentSelection(SelectionOperator):
         """
         N = X.shape[0]
 
-        competitor_1 = np.random.randint(0, N, size=N)
-        competitor_2 = np.random.randint(0, N, size=N)
+        competitor_1 = self.rng.integers(0, N, size=N)
+        competitor_2 = self.rng.integers(0, N, size=N)
 
         c1_better_rank = ranks[competitor_1] < ranks[competitor_2]
         

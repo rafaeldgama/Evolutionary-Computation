@@ -1,6 +1,10 @@
-import numpy as np
 from abc import ABC, abstractmethod
+from typing import Literal
 from warnings import warn
+
+import numpy as np
+from scipy.stats import qmc
+
 
 class PopulationOptimizer(ABC):
 
@@ -11,8 +15,11 @@ class PopulationOptimizer(ABC):
                  population_size,
                  dimensions,
                  bounds,
+                 sampling: Literal["uniform", "lhs", "choice"] = "uniform",
+                 seed: int | None = None,
                  **kwargs):
         super().__init__()
+        self.rng = np.random.default_rng(seed)
         self.problem = problem
         self.direction = direction.lower()
         if self.direction not in ['max', 'min']:
@@ -21,7 +28,24 @@ class PopulationOptimizer(ABC):
         self.population_size = population_size
         self.dimensions = dimensions
         self.bounds = np.array(bounds)
-        self.X = np.random.uniform(low=self.bounds[:,0], high=self.bounds[:,1], size=(population_size, dimensions))
+        if sampling.lower() == "uniform":
+            self.X = self.rng.uniform(low=self.bounds[:,0], high=self.bounds[:,1], size=(population_size, dimensions))
+        elif sampling.lower() == "lhs":
+            lhs = qmc.LatinHypercube(d=dimensions, seed=42)
+            self.X = (
+                lhs.random(n=population_size) * (self.bounds[:,1] - self.bounds[:,0])
+                + self.bounds[:,0]
+            )
+        elif sampling.lower() == "choice":
+            # Assuming the bounds are a 2D array [[lower_bound, upper_bound]]
+            xl, xu = self.bounds[0][0], self.bounds[0][1]
+            self.X = self.rng.choice(
+                np.arange(xl, xu),
+                size=(population_size, dimensions),
+                replace=True,
+            )
+        else:
+            raise ValueError("Invalid initialization method. Must be either 'uniform' or 'lhs'.")
         self.fitness = self.problem.evaluate(self.X)
 
     @abstractmethod
@@ -45,9 +69,10 @@ class MultiObjectiveOptimizer(PopulationOptimizer):
                  population_size,
                  dimensions,
                  bounds,
+                 direction: str = 'min',
                  **kwargs):
         super().__init__(problem,
-                         direction='min',
+                         direction=direction,
                          population_size=population_size,
                          dimensions=dimensions,
                          bounds=bounds,

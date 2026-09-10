@@ -3,10 +3,12 @@ from abc import ABC, abstractmethod
 
 class CrossOverOperator(ABC):
     def __init__(self,
-                 probability):
+                 probability,
+                 seed: int | None = None):
         super().__init__()
 
         self.probability = probability
+        self.rng = np.random.default_rng(seed)
 
     @abstractmethod
     def crossover(self, X, Y):
@@ -14,28 +16,29 @@ class CrossOverOperator(ABC):
 
 class BinomialCrossOver(CrossOverOperator):
     def __init__(self,
-                 probability):
-        super().__init__(probability)
+                 probability, seed: int | None = None):
+        super().__init__(probability, seed=seed)
 
     def crossover(self, X, V):
-        mask = np.random.uniform(low=0, high=1, size=(X.shape)) < self.probability
-        j_rand = np.random.randint(low=0, high=X.shape[1], size=X.shape[0])
+        mask = self.rng.uniform(low=0, high=1, size=(X.shape)) < self.probability
+        j_rand = self.rng.integers(low=0, high=X.shape[1], size=X.shape[0])
         mask[np.arange(X.shape[0]), j_rand] = True
         return np.where(mask, V, X)
 
 class SimulatedBinaryCrossover(CrossOverOperator):
     def __init__(self,
                  probability=0.9,
-                 eta_c=20):
-        super().__init__(probability)
+                 eta_c=20,
+                 seed: int | None = None):
+        super().__init__(probability, seed=seed)
         self.eta_c = eta_c
 
     def crossover(self, X, Y):
         N, D = X.shape
 
-        cross_mask = np.random.random_sample(size=(N,1)) <= self.probability
+        cross_mask = self.rng.random(size=(N,1)) <= self.probability
 
-        u = np.random.random_sample(size=(N,D))
+        u = self.rng.random(size=(N,D))
         beta = np.empty((N, D))
 
         mask_u = u <= 0.5
